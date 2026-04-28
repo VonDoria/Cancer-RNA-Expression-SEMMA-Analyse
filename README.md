@@ -14,14 +14,18 @@ O fluxo de trabalho foi estruturado seguindo as cinco etapas da metodologia SEMM
 * **Origem dos Dados:** Dataset de expressão gênica do Kaggle com dados de RNA-Seq.
 * **Divisão de Dados:** Separação entre **80% para treino** e **20% para teste**.
 * **Estratificação:** Utilização de `stratify=y` para manter a proporção das classes original nos conjuntos de treino e teste.
-![Estratificação das classes](./figs//stratify.png)
+<div align="center">
+  <img src="./figs/stratify.png" width="400" alt="Curva ROC">
+</div>
 
 ### 2. Explore (Exploração)
 * **Análise Descritiva:** Cálculo de médias e medianas agrupadas por tipo de tumor para entender o comportamento das features.
 * **Identificação de Missing:** Verificação de dados nulos no conjunto de treino.
 * **Importância de Atributos:** Uso de uma **Decision Tree** para ranquear os genes mais importantes. Foram selecionadas as variáveis que acumulam **95% da importância** total para o modelo.
-![Decision Tree](./figs//explore_tree.png)
-![Genes mais significativos](./figs/explore_best_genes.png)
+<div align="center" class="flex center">
+  <img src="./figs/explore_tree.png" width="300" alt="Decision Tree">
+  <img src="./figs/explore_best_genes.png" width="400" alt="Genes mais significativos">
+</div>
 
 ### 3. Modify (Modificação)
 * **Label Encoding:** Conversão das etiquetas qualitativas (classes de câncer) em valores numéricos.
