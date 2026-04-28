@@ -51,7 +51,7 @@ print("Original: " + str(y.value_counts(normalize=True))) #Conta o numero de oco
 print("Treino: " + str(y_train.value_counts(normalize=True)))
 print("Teste: " + str(y_test.value_counts(normalize=True)))
 
-plt.figure(figsize=(10, 5))
+plt.figure(dpi=700, figsize=[6,3])
 df_origin_dist = y.value_counts(normalize=True).reset_index()
 df_origin_dist['Dataset'] = 'Original'
 df_train_dist = y_train.value_counts(normalize=True).reset_index()
@@ -108,7 +108,7 @@ feature_importances = (pd.Series(arvore.feature_importances_,
                                  .sort_values(ascending=False)
                                  .reset_index())
 #%%
-plt.figure(figsize=(10, 6))
+plt.figure(dpi=700, figsize=[6,3])
 sns.barplot(data=feature_importances.head(10), x=0, y='index', palette='viridis')
 plt.title('Top 10 Genes por Importância')
 plt.xlabel('Importância Relativa')
