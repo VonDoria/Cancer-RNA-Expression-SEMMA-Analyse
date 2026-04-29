@@ -1,14 +1,18 @@
 #%%
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn import model_selection
 from sklearn import tree
 from sklearn import linear_model
+from sklearn import naive_bayes
+from sklearn import ensemble
 from sklearn import metrics
-import matplotlib.pyplot as plt
-from feature_engine import discretisation
+from sklearn import pipeline
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import roc_curve, auc
-import seaborn as sns
+from feature_engine import discretisation, encoding
+import mlflow
 
 # Aumentando o limite de visualização do pandas para o caso em questão
 # pd.options.display.max_columns = 21000
@@ -127,52 +131,86 @@ best_features
 # ['Padronização', 'Imputação de Missing', 'Binning', 'Combinação']
 
 
-
 #%%
 # TRANFORMA A VARIAVEL DO TIPO QUALITATIVA NOMINAL PARA QUANTITATIVA DISCRETA
+# No caso em questão, isso se aplica apenas a variável target
 le = LabelEncoder()
 y_train_encoded = le.fit_transform(y_train)
 y_test_encoded = le.fit_transform(y_test)
 mapping = dict(zip(le.classes_, le.transform(le.classes_)))
 mapping
 
-#%%
+#%% **************ESSE BLOCO É APENAS UM EXEMPLO*******************
+# PADRONIZA AS FEATURES (DISCRETIZAÇÃO)
+# No caso em questão não mudara nada pois as features já são numericas, mas no caso de features nominais isso é util
 tree_discretisation = discretisation.DecisionTreeDiscretiser(variables=best_features, regression=False)
 tree_discretisation.fit(X_train, y_train_encoded)
 
-#%%
-# PADRONIZA AS FEATURES
 X_train_trasformed = tree_discretisation.transform(X_train)
 X_test_trasformed = tree_discretisation.transform(X_test)
 X_test_trasformed
+
+# ONEHOTENCODING
+# Nesse ponto as features ordinais foram transformadas em numéricas, 
+# mas com valores como [1, 2, 3...] o que pode sugerir que são sequenciais, e não são.
+# Para corrigir isso, vamos fazer onehotEncoding para dividir esses valores em colunas de 0 e 1
+onehot = encoding.OneHotEncoder(variables=best_features, ignore_format=True)
+onehot.fit(X_train_trasformed, y_train_encoded)
+X_train_trasformed = onehot.transform(X_train_trasformed)
+X_train_trasformed
+# Isso vai almentar muito o número de colunas, mas após isso você pode ranquear as colunas mais importantes e dropar as menos.
 
 
 
 # ============================MODEL=============================
 # ['Modelos Estatísticos', 'Modelo de Árvore', 'Modelo de Vetor de Suporte', 'Redes Neurais']
 
+# EXEMPLOS DE MODELOS
+model = linear_model.LogisticRegression(penalty=None, random_state=42)
+model = naive_bayes.BernoulliNB()
+model = ensemble.RandomForestClassifier(random_state=42, 
+                                        min_samples_leaf=28,
+                                        n_jobs=-1, #Número de CPUs a serem usadas ao mesmo tempo (-1 = todas as disponiveis).
+                                        n_estimators=500) #Número de arvores a serem criadas.
+model - tree.DecisionTreeClassifier(random_state=42, min_samples_leaf=28)
+model = ensemble.AdaBoostClassifier(random_state=42,
+                                    n_estimators=500,
+                                    learning_rate=0.01) #Grau de penalidade aplicados as arvores que o modelo errou durante seu treinamento.
 
-#%%
-reg = linear_model.LogisticRegression(penalty=None, random_state=42)
-reg.fit(X_train_trasformed, y_train_encoded)
+# EXEMPLO DE PIPELINE
+model_pipeline = pipeline.Pipeline(
+    steps=[
+        {'Discretization': tree_discretisation},
+        {'Onehot': onehot},
+        {'Model': model},
+    ]
+)
+
+model_pipeline.fit(X_train, y_train)
+# Nesse caso, tudo que se segue para baixo seria simplificado, 
+# o model seria substituido pelo model_pipeline 
+# e o X_test_trasformed e y_train_encoded substituidos por X_train e y_train
 
 
+#%% *****************EXECUTE A PARTIR DESSE BLOCO***************************
+# ESSE SERA O MODELO QUE IREMOS ADOTAR COMO EXEMPLO
+model = linear_model.LogisticRegression(penalty=None, random_state=42)
+model.fit(X_train_trasformed, y_train_encoded)
 
 # ============================ASSESS=============================
 # ['Métricas de Ajuste', 'Decisão', 'Comparação', 'Serialização']
 
 
-
 #%%
-y_train_predict = reg.predict(X_train_trasformed)
-y_train_proba = reg.predict_proba(X_train_trasformed)
+y_train_predict = model.predict(X_train_trasformed)
+y_train_proba = model.predict_proba(X_train_trasformed)
 acc_train = metrics.accuracy_score(y_train_encoded, y_train_predict)
 auc_train = metrics.roc_auc_score(y_train_encoded, y_train_proba, multi_class='ovr')
 print("Acuracia Treino: " + str(acc_train))
 print("AUC Treino: " + str(auc_train))
 #%%
-y_test_predict = reg.predict(X_test_trasformed)
-y_test_proba = reg.predict_proba(X_test_trasformed)
+y_test_predict = model.predict(X_test_trasformed)
+y_test_proba = model.predict_proba(X_test_trasformed)
 acc_test = metrics.accuracy_score(y_test_encoded, y_test_predict)
 auc_test = metrics.roc_auc_score(y_test_encoded, y_test_proba, multi_class='ovr')
 print("Acuracia Treino: " + str(acc_test))
@@ -185,10 +223,10 @@ for i in range(len(le.classes_)):
     roc_auc = auc(fpr, tpr)
     plt.plot(fpr, tpr, label=f'{le.classes_[i]} (AUC = {roc_auc:.2f})')
 
-plt.plot([0, 1], [0, 1], 'k--') # Linha de referência diagonal
-plt.xlabel('Taxa de Falsos Positivos')
-plt.ylabel('Taxa de Verdadeiros Positivos')
+plt.plot([0, 1], [0, 1], 'k--') 
 plt.title('Curva ROC - Desempenho por Tipo de Câncer')
+plt.xlabel("1 - Especificidade") # Taxa de Falsos Positivos
+plt.ylabel("Sensibilidade") # Taxa de Verdadeiros Positivos
 plt.legend(loc='lower right')
 plt.show()
 
@@ -197,4 +235,34 @@ plt.show()
 
 
 
+
+#%% **************ESSE BLOCO É APENAS UM EXEMPLO*******************
+# ============================MLFlow=============================
+# O QUE SE SEGUE AQUI É APENAS UM EXEMPLO DE IMPLEMENTAÇÃO E NÃO ESTÁ RELACIONADO AO EXEMPLO ACIMA
+# O MLFlow é uma aplicação que ajuda a gerencias os varios modelos que forem criados/treinados.
+# Ele faz isso atravez de uma interfacie web, onde é possivel comparar a eficácia dos modelos facilmente.
+
+# P/ SUBIR A APLICAÇÃO => mlflow server
+# Na aplicação é necessário criar um novo experimento e pegar o ID do experimento
+# No código, para logar o modelo no mlflow, adicione as linhas a seguir antes do treinamento do modelo
+
+mlflow.set_tracking_uri("porta_onde_o_mlflow_ta_rodando")
+mlflow.set_experiment(experiment_name="nome_do_experimento")
+
+with mlflow.start_run(run_name=model.__str__()):
+    
+    mlflow.sklearn.autolog()
+
+    model_pipeline.fit(X_train, y_train)
+
+    # ...
+    # TODA A PARTE DE ASSESS, TESTE DE ACURACIA E AUC VEM AQUI
+    # ...
+
+    mlflow.log_metrics({
+    "acc_train":acc_train,
+    "auc_train":auc_train,
+    "acc_test":acc_test,
+    "auc_test":auc_test,
+    })
 
